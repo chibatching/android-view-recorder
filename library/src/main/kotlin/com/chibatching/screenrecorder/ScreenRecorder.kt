@@ -4,7 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.os.AsyncTask
+import android.util.Config
 import android.util.Log
 import android.view.View
 import com.chibatching.screenrecorder.encoder.gif.AnimatedGifEncoder
@@ -13,17 +15,15 @@ import java.io.File
 import java.io.FileOutputStream
 
 
-class ScreenRecorder(
+public class ScreenRecorder(
         val context: Context, val view: View,
-        val duration: Int = 5000, val frameRate: Int = 15, val scale: Long = 0.5.toLong()) {
+        val duration: Int = 5000, val frameRate: Int = 15, val scale: Double = 0.5) {
 
     var isRecording: Boolean = false
 
-    fun start() {
+    public fun start() {
         Log.d(javaClass<ScreenRecorder>().getSimpleName(), "start")
         isRecording = true
-
-        view.setDrawingCacheEnabled(true)
 
         val fileDirPath = context.getFilesDir().getAbsolutePath().plus("/screen_record_temp")
         val fileDir = File(fileDirPath)
@@ -42,13 +42,24 @@ class ScreenRecorder(
             while (frameCount < frameRate * duration / 1000) {
                 Log.d(javaClass<ScreenRecorder>().getSimpleName(), "frame: $frameCount")
                 view.setDrawingCacheEnabled(true)
-                val orgBitmap = view.getDrawingCache()
+                var orgBitmap = view.getDrawingCache()
+                val flag = if (orgBitmap == null) {
+                    orgBitmap = Bitmap.createBitmap(view.getWidth(), view.getHeight(), Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(orgBitmap)
+                    view.draw(canvas)
+                    true
+                } else { false }
+
                 val bitmap =
                         Bitmap.createScaledBitmap(
                                 orgBitmap,
                                 (orgBitmap.getWidth() * scale).toInt(),
                                 (orgBitmap.getHeight() * scale).toInt(),
                                 false)
+
+                if (flag) {
+                    orgBitmap.recycle()
+                }
 
                 object: AsyncTask<Void, Void, Void>() {
                     override protected fun doInBackground(vararg args: Void?): Void? {
@@ -66,7 +77,7 @@ class ScreenRecorder(
                 }.execute()
 
                 frameCount++
-                view.setDrawingCacheEnabled(false)
+                view.destroyDrawingCache()
                 Thread.sleep(1000 / frameRate.toLong())
             }
 
