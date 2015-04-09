@@ -11,6 +11,8 @@ import android.widget.RelativeLayout;
 
 import com.chibatching.screenrecorder.ScreenRecorder;
 
+import org.jetbrains.annotations.NotNull;
+
 public class SampleFragment extends Fragment {
 
     private static final int[] COLORS = {Color.BLUE, Color.GREEN, Color.RED};
@@ -33,20 +35,24 @@ public class SampleFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View view = inflater.inflate(R.layout.fragment_sample, container, false);
-        final RelativeLayout layout = (RelativeLayout) view.findViewById(R.id.container);
+        final View contentView = inflater.inflate(R.layout.fragment_sample, container, false);
+        final RelativeLayout layout = (RelativeLayout) contentView.findViewById(R.id.container);
 
-        Button recButton = (Button) view.findViewById(R.id.btn_rec);
+        Button recButton = (Button) contentView.findViewById(R.id.btn_rec);
         recButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
-                ScreenRecorder sr = ScreenRecorder.INSTANCE$;
-                sr.setup(getActivity());
+            public void onClick(@NotNull View view) {
+                ScreenRecorder sr =
+                        new ScreenRecorder(
+                                getActivity(),
+                                getActivity().getWindow().getDecorView(),
+                                5000,
+                                30);
                 sr.start();
             }
         });
 
-        Button changeButton = (Button) view.findViewById(R.id.btn_change_color);
+        Button changeButton = (Button) contentView.findViewById(R.id.btn_change_color);
         changeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -54,7 +60,7 @@ public class SampleFragment extends Fragment {
             }
         });
 
-        return view;
+        return contentView;
     }
 
 }
