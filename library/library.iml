@@ -88,7 +88,9 @@
     <orderEntry type="jdk" jdkName="Android API 22 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" name="kotlin-runtime-0.11.91.1" level="project" />
+    <orderEntry type="library" exported="" name="rxandroid-0.24.0" level="project" />
     <orderEntry type="library" exported="" name="kotlin-stdlib-0.11.91.1" level="project" />
+    <orderEntry type="library" exported="" name="rxjava-1.0.4" level="project" />
   </component>
 </module>
 

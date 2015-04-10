@@ -47,8 +47,9 @@ public class SampleFragment extends Fragment {
                                 getActivity(),
                                 getActivity().getWindow().getDecorView(),
                                 5000,
-                                30,
-                                0.5);
+                                20,
+                                0.3,
+                                0);
                 sr.start();
             }
         });
