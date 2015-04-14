@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.os.AsyncTask
+import android.os.Debug
 import android.util.Log
 import android.view.View
 import com.chibatching.screenrecorder.encoder.gif.AnimatedGifEncoder
@@ -29,17 +30,6 @@ public class ScreenRecorder(
     public fun start() {
         Log.d(javaClass<ScreenRecorder>().getSimpleName(), "start")
         isRecording = true
-
-        val fileDirPath = context.getExternalCacheDir().getAbsolutePath().plus("/screen_record_temp")
-        val fileDir = File(fileDirPath)
-        if (!fileDir.exists()) {
-            fileDir.mkdirs()
-        } else if (!fileDir.isDirectory()) {
-            fileDir.delete()
-            fileDir.mkdirs()
-        } else {
-            fileDir.listFiles().forEach { it.delete() }
-        }
 
         val maxCount = (frameRate * duration / 1000).toInt()
         val interval = 1000 / frameRate
@@ -96,19 +86,22 @@ public class ScreenRecorder(
                 }
             }).start()
         }
+        .subscribeOn(Schedulers.newThread())
         .buffer(maxCount + 1)
+        .observeOn(Schedulers.computation())
         .subscribe { data ->
+
+            Debug.startMethodTracing("encode")
             val outputFile = File(context.getExternalFilesDir(null).getAbsolutePath().plus("/output.gif"))
             outputFile.createNewFile()
 
             FileOutputStream(outputFile).use { fos ->
-                val encoder = AnimatedGifEncoder()
-                encoder.start(fos)
-                encoder.setRepeat(loopCount)
+                val encoder = AnimatedGifEncoder(fos)
+                encoder.start()
+                encoder.repeat = loopCount
                 encoder.setFrameRate(frameRate.toFloat())
                 var prev = 0
-                data.sortBy { it.first }
-                data.forEach {
+                data.sortBy { it.first }.forEach {
                     val current = it.first
                     Log.d(javaClass<ScreenRecorder>().getSimpleName(), "current: $current, prev: $prev")
                     encoder.addFrame(BitmapFactory.decodeByteArray(it.second, 0, it.second!!.size()))
@@ -116,6 +109,7 @@ public class ScreenRecorder(
                 }
                 encoder.finish()
             }
+            Debug.stopMethodTracing()
         }
     }
 }
