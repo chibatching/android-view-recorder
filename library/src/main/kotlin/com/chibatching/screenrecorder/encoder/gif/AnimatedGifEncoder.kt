@@ -456,9 +456,6 @@ public class AnimatedGifEncoder (val out : OutputStream) {
      */
     throws(javaClass<IOException>())
     fun writeString(s: String) {
-//        for (i in 0..s.length() - 1) {
-//            out.write(s.charAt(i).toByte().toInt())
-//        }
         out.write(s.toByteArray())
     }
 }

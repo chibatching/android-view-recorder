@@ -294,7 +294,6 @@ class NeuQuant
             }
         }
 
-        Log.d(javaClass<AnimatedGifEncoder>().getSimpleName(), "start $samplepixels")
         i = 0
         while (i < samplepixels) {
             b = (thepicture[pix + 0] and 255) shl netbiasshift
@@ -327,7 +326,6 @@ class NeuQuant
                 }
             }
         }
-        Log.d(javaClass<AnimatedGifEncoder>().getSimpleName(), "end")
     }
 
     /*
