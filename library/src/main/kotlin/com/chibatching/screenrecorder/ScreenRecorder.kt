@@ -12,6 +12,7 @@ import android.view.View
 import com.chibatching.screenrecorder.encoder.gif.AnimatedGifEncoder
 import rx.Observable
 import rx.Subscriber
+import rx.android.schedulers.AndroidSchedulers
 import rx.schedulers.Schedulers
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -43,37 +44,34 @@ public class ScreenRecorder(
             Thread (Runnable {
                 Log.d(javaClass<ScreenRecorder>().getSimpleName(), "start thread")
 
-                (0..maxCount - 1).forEach {
+                for (i in 0..maxCount - 1) {
                     val startTime = System.currentTimeMillis()
-                    Log.d(javaClass<ScreenRecorder>().getSimpleName(), "frame: $it")
-                    var orgBitmap = view.getDrawingCache()
-                    val bitmap =
-                            Bitmap.createScaledBitmap(
-                                    orgBitmap,
-                                    (orgBitmap.getWidth() * scale).toInt(),
-                                    (orgBitmap.getHeight() * scale).toInt(),
-                                    false)
+                    Log.d(javaClass<ScreenRecorder>().getSimpleName(), "frame: $i")
 
-                    object: AsyncTask<Void, Void, ByteArray>() {
-                        override protected fun doInBackground(vararg args: Void?): ByteArray? {
-                            var result: ByteArray? = null
-                            ByteArrayOutputStream().use {
-                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
-                                result = it.toByteArray()
-                            }
-                            return result
-                        }
-
-                        override protected fun onPostExecute(result: ByteArray?) {
-                            subscriber?.onNext(Pair(it, result))
+                    Observable.create<Bitmap> {
+                        var orgBitmap = view.getDrawingCache()
+                        val bitmap =
+                                Bitmap.createScaledBitmap(
+                                        orgBitmap,
+                                        (orgBitmap.getWidth() * scale).toInt(),
+                                        (orgBitmap.getHeight() * scale).toInt(),
+                                        false)
+                        it.onNext(bitmap)
+                        it.onCompleted()
+                        view.destroyDrawingCache()
+                    }
+                    .subscribeOn(AndroidSchedulers.mainThread())
+                    .observeOn(Schedulers.newThread())
+                    .subscribe { bitmap ->
+                        ByteArrayOutputStream().use {
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                            subscriber.onNext(Pair(i, it.toByteArray()))
                             savedFrame++
                             if (savedFrame >= maxCount) {
                                 subscriber.onCompleted()
                             }
                         }
-                    }.execute()
-
-                    view.destroyDrawingCache()
+                    }
 
                     Thread.sleep(
                             if ((System.currentTimeMillis() - startTime) < interval.toLong()) {
