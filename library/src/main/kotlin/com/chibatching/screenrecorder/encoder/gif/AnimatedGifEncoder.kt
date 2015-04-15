@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.Bitmap.Config
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.util.Log
 
 public class AnimatedGifEncoder (val out : OutputStream) {
 
@@ -67,7 +68,7 @@ public class AnimatedGifEncoder (val out : OutputStream) {
 
     var sample: Int = 10 // default sample interval for quantizer
 
-    data class AnalyzedData(val indexedPixels: ByteArray, val colorTab: ByteArray)
+    data class AnalyzedData(val indexedPixels: ByteArray, val colorTab: IntArray)
 
     /**
      * Adds next GIF frame. The frame is not written immediately, but is actually
@@ -240,12 +241,14 @@ public class AnimatedGifEncoder (val out : OutputStream) {
         // initialize quantizer
         val colorTab = nq.process() // create reduced palette
         // convert map from BGR to RGB
-        for (i in Array(colorTab.size() / 3, { it * 3 })) {
-            val temp = colorTab.get(i)
-            colorTab.set(i, colorTab[i + 2])
-            colorTab.set(i + 2, temp)
-            usedEntry.set(i / 3, false)
+        for (i in 0..colorTab.size() / 3 - 1) {
+            val tind = i * 3
+            val temp = colorTab[tind]
+            colorTab[tind] = colorTab[tind + 2]
+            colorTab[tind + 2] = temp
+            usedEntry[i] = false
         }
+
         // map image pixels to new palette
         var k = 0
         for (i in 0..nPix - 1) {
@@ -253,12 +256,14 @@ public class AnimatedGifEncoder (val out : OutputStream) {
             usedEntry.set(index, true)
             indexedPixels.set(i, index.toByte())
         }
+
         colorDepth = 8
         palSize = 7
         // get closest match to transparent color if specified
         if (transparent != -1) {
             transIndex = findClosest(transparent, colorTab)
         }
+
         return AnalyzedData(indexedPixels, colorTab)
     }
 
@@ -266,7 +271,7 @@ public class AnimatedGifEncoder (val out : OutputStream) {
      * Returns index of palette color closest to c
 
      */
-    protected fun findClosest(c: Int, colorTab: ByteArray): Int {
+    protected fun findClosest(c: Int, colorTab: IntArray): Int {
         val r = (c shr 16) and 255
         val g = (c shr 8) and 255
         val b = (c shr 0) and 255
@@ -276,9 +281,9 @@ public class AnimatedGifEncoder (val out : OutputStream) {
         run {
             var i = 0
             while (i < len) {
-                val dr = r - (colorTab[i++].toInt() and 255)
-                val dg = g - (colorTab[i++].toInt() and 255)
-                val db = b - (colorTab[i].toInt() and 255)
+                val dr = r - (colorTab[i++] and 255)
+                val dg = g - (colorTab[i++] and 255)
+                val db = b - (colorTab[i] and 255)
                 val d = dr * dr + dg * dg + db * db
                 val index = i / 3
                 if (usedEntry[index] && (d < dmin)) {
@@ -306,12 +311,11 @@ public class AnimatedGifEncoder (val out : OutputStream) {
         }
         val data = getImageData(if (temp == null) image else temp as Bitmap)
         val pixels = IntArray(data.size() * 3)
-        for (i in data.indices) {
-            val td = data[i]
-            var tind = i * 3
-            pixels.set(tind++, (td shr 0) and 255)
-            pixels.set(tind++, (td shr 8) and 255)
-            pixels.set(tind, (td shr 16) and 255)
+        for (i in 0..data.size() - 1) {
+            val tind = i * 3
+            pixels[tind] = (data[i] shr 0) and 255
+            pixels[tind + 1] = (data[i] shr 8) and 255
+            pixels[tind + 2] = (data[i] shr 16) and 255
         }
         return pixels
     }
@@ -419,8 +423,10 @@ public class AnimatedGifEncoder (val out : OutputStream) {
      * Writes color table
      */
     throws(javaClass<IOException>())
-    protected fun writePalette(colorTab: ByteArray) {
-        out.write(colorTab, 0, colorTab.size())
+    protected fun writePalette(colorTab: IntArray) {
+        for (i in 0..colorTab.size() - 1) {
+            out.write(colorTab[i])
+        }
         val n = (3 * 256) - colorTab.size()
         for (i in 0..n - 1) {
             out.write(0)
@@ -450,8 +456,9 @@ public class AnimatedGifEncoder (val out : OutputStream) {
      */
     throws(javaClass<IOException>())
     fun writeString(s: String) {
-        for (i in 0..s.length() - 1) {
-            out.write(s.charAt(i).toByte().toInt())
-        }
+//        for (i in 0..s.length() - 1) {
+//            out.write(s.charAt(i).toByte().toInt())
+//        }
+        out.write(s.toByteArray())
     }
 }

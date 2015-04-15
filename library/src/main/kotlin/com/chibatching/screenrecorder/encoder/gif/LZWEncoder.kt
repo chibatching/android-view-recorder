@@ -13,10 +13,12 @@ class LZWEncoder {
     constructor(imgW: Int, imgH: Int, pixAry: ByteArray, color_depth: Int) {
         this.imgW = imgW
         this.imgH = imgH
+
         this.pixelArray = IntArray(pixAry.size())
-        for (i in pixAry.indices) {
-            pixelArray.set(i, pixAry.get(i).toInt() and 255)
+        for (i in 0..pixAry.size() - 1) {
+            pixelArray[i] = pixAry[i].toInt() and 255
         }
+
         this.color_depth = color_depth
         this.initCodeSize = Math.max(2, color_depth)
     }
@@ -128,8 +130,9 @@ class LZWEncoder {
 
     // reset code table
     fun cl_hash(hsize: Int) {
-        for (i in 0..hsize - 1)
+        for (i in 0..hsize - 1) {
             htab[i] = -1
+        }
     }
 
     throws(javaClass<IOException>())
@@ -172,9 +175,9 @@ class LZWEncoder {
 
         output(ClearCode, outs)
 
-        @outer_loop for (pixel in pixelArray) {
-            fcode = (pixel shl maxbits) + ent
-            i = (pixel shl hshift) xor ent // xor hashing
+        @outer_loop for (pixi in 0..pixelArray.size() - 1) {
+            fcode = (pixelArray[pixi] shl maxbits) + ent
+            i = (pixelArray[pixi] shl hshift) xor ent // xor hashing
 
             if (htab[i] == fcode) {
                 ent = codetab[i]
@@ -197,7 +200,7 @@ class LZWEncoder {
                 } while (htab[i] >= 0)
             }
             output(ent, outs)
-            ent = pixel
+            ent = pixelArray[pixi]
             if (free_ent < maxmaxcode) {
                 codetab[i] = free_ent++ // code -> hashtable
                 htab[i] = fcode

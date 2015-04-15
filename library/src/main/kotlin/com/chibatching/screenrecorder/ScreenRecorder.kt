@@ -34,7 +34,7 @@ public class ScreenRecorder(
         val maxCount = (frameRate * duration / 1000).toInt()
         val interval = 1000 / frameRate
 
-        Log.d(javaClass<ScreenRecorder>().getSimpleName(), "macCount: $maxCount, interval: $interval")
+        Log.d(javaClass<ScreenRecorder>().getSimpleName(), "maxCount: $maxCount, interval: $interval")
 
         var savedFrame = 0
         view.setDrawingCacheEnabled(true)
@@ -42,11 +42,10 @@ public class ScreenRecorder(
         Observable.create<Pair<Int, ByteArray?>> {subscriber ->
             Thread (Runnable {
                 Log.d(javaClass<ScreenRecorder>().getSimpleName(), "start thread")
-                var frameCount = 0
-                while (frameCount < maxCount) {
-                    val currentCount = frameCount
+
+                (0..maxCount - 1).forEach {
                     val startTime = System.currentTimeMillis()
-                    Log.d(javaClass<ScreenRecorder>().getSimpleName(), "frame: $currentCount")
+                    Log.d(javaClass<ScreenRecorder>().getSimpleName(), "frame: $it")
                     var orgBitmap = view.getDrawingCache()
                     val bitmap =
                             Bitmap.createScaledBitmap(
@@ -66,7 +65,7 @@ public class ScreenRecorder(
                         }
 
                         override protected fun onPostExecute(result: ByteArray?) {
-                            subscriber?.onNext(Pair(currentCount, result))
+                            subscriber?.onNext(Pair(it, result))
                             savedFrame++
                             if (savedFrame >= maxCount) {
                                 subscriber.onCompleted()
@@ -76,7 +75,6 @@ public class ScreenRecorder(
 
                     view.destroyDrawingCache()
 
-                    frameCount++
                     Thread.sleep(
                             if ((System.currentTimeMillis() - startTime) < interval.toLong()) {
                                 interval.toLong() - (System.currentTimeMillis() - startTime)
@@ -88,10 +86,8 @@ public class ScreenRecorder(
         }
         .subscribeOn(Schedulers.newThread())
         .buffer(maxCount + 1)
-        .observeOn(Schedulers.computation())
+        .observeOn(Schedulers.newThread())
         .subscribe { data ->
-
-            Debug.startMethodTracing("encode")
             val outputFile = File(context.getExternalFilesDir(null).getAbsolutePath().plus("/output.gif"))
             outputFile.createNewFile()
 
@@ -109,7 +105,6 @@ public class ScreenRecorder(
                 }
                 encoder.finish()
             }
-            Debug.stopMethodTracing()
         }
     }
 }

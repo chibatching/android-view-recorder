@@ -1,5 +1,7 @@
 package com.chibatching.screenrecorder.encoder.gif
 
+import android.util.Log
+
 
 /*
  * NeuQuant Neural-Net Quantization Algorithm
@@ -32,6 +34,89 @@ package com.chibatching.screenrecorder.encoder.gif
 */
 class NeuQuant
 (protected var thepicture: IntArray, protected var lengthcount: Int, protected var samplefac: Int) {
+    /* number of colours used */
+    protected val netsize: Int = 256
+
+    /* four primes near 500 - assume no image has a length so large */
+    /* that it is divisible by all four primes */
+    protected val prime1: Int = 499
+
+    protected val prime2: Int = 491
+
+    protected val prime3: Int = 487
+
+    protected val prime4: Int = 503
+
+    protected val minpicturebytes: Int = (3 * prime4)
+
+    /* minimum size for input image */
+
+    /*
+* Program Skeleton ---------------- [select samplefac in range 1..30] [read
+* image from input file] pic = (unsigned char*) malloc(3*width*height);
+* initnet(pic,3*width*height,samplefac); learn(); unbiasnet(); [write output
+* image header, using writecolourmap(f)] inxbuild(); write output image using
+* inxsearch(b,g,r)
+*/
+
+    /*
+* Network Definitions -------------------
+*/
+
+    protected val maxnetpos: Int = (netsize - 1)
+
+    protected val netbiasshift: Int = 4 /* bias for colour values */
+
+    protected val ncycles: Int = 100 /* no. of learning cycles */
+
+    /* defs for freq and bias */
+    protected val intbiasshift: Int = 16 /* bias for fractions */
+
+    protected val intbias: Int = 1 shl intbiasshift
+
+    protected val gammashift: Int = 10 /* gamma = 1024 */
+
+    protected val gamma: Int = 1 shl gammashift
+
+    protected val betashift: Int = 10
+
+    protected val beta: Int = (intbias shr betashift) /* beta = 1/1024 */
+
+    protected val betagamma: Int = (intbias shl (gammashift - betashift))
+
+    /* defs for decreasing radius factor */
+    /*
+    * for 256 cols, radius
+    * starts
+    */
+    protected val initrad: Int = (netsize shr 3)
+
+    protected val radiusbiasshift: Int = 6 /* at 32.0 biased by 6 bits */
+
+    protected val radiusbias: Int = 1 shl radiusbiasshift
+
+    /*
+    * and
+    * decreases
+    * by a
+    */
+    protected val initradius: Int = (initrad * radiusbias)
+
+    protected val radiusdec: Int = 30 /* factor of 1/30 each cycle */
+
+    /* defs for decreasing alpha factor */
+    protected val alphabiasshift: Int = 10 /* alpha starts at 1.0 */
+
+    protected val initalpha: Int = 1 shl alphabiasshift
+
+    /* radbias and alpharadbias used for radpower calculation */
+    protected val radbiasshift: Int = 8
+
+    protected val radbias: Int = 1 shl radbiasshift
+
+    protected val alpharadbshift: Int = (alphabiasshift + radbiasshift)
+
+    protected val alpharadbias: Int = 1 shl alpharadbshift
 
     protected var alphadec: Int = 0 /* biased by 10 bits */
 
@@ -61,17 +146,18 @@ class NeuQuant
         })
     }
 
-    public fun colorMap(): ByteArray {
-        val map = ByteArray(3 * netsize)
+    public fun colorMap(): IntArray {
+        val map = IntArray(3 * netsize)
         val index = IntArray(netsize)
-        for (i in 0..netsize - 1)
+        for (i in 0..netsize - 1) {
             index[network[i][3]] = i
+        }
         var k = 0
         for (i in 0..netsize - 1) {
             val j = index[i]
-            map[k++] = (network[j][0]).toByte()
-            map[k++] = (network[j][1]).toByte()
-            map[k++] = (network[j][2]).toByte()
+            map[k++] = network[j][0]
+            map[k++] = network[j][1]
+            map[k++] = network[j][2]
         }
         return map
     }
@@ -171,16 +257,12 @@ class NeuQuant
         val step: Int
         var delta: Int
         val samplepixels: Int
-        val p: IntArray
         var pix: Int
-        val lim: Int
 
         if (lengthcount < minpicturebytes)
             samplefac = 1
         alphadec = 30 + ((samplefac - 1) / 3)
-        p = thepicture
         pix = 0
-        lim = lengthcount
         samplepixels = lengthcount / (3 * samplefac)
         delta = samplepixels / ncycles
         alpha = initalpha
@@ -189,15 +271,13 @@ class NeuQuant
         rad = radius shr radiusbiasshift
         if (rad <= 1)
             rad = 0
+
         run {
-            i = 0
-            while (i < rad) {
-                radpower[i] = alpha * (((rad * rad - i * i) * radbias) / (rad * rad))
-                i++
+            val rad2 = rad * rad
+            for (i in 0..rad - 1) {
+                radpower[i] = alpha * (((rad2 - i * i) * radbias) / rad2)
             }
         }
-
-        // fprintf(stderr,"beginning 1D learning: initial radius=%d\n", rad);
 
         if (lengthcount < minpicturebytes)
             step = 3
@@ -214,11 +294,12 @@ class NeuQuant
             }
         }
 
+        Log.d(javaClass<AnimatedGifEncoder>().getSimpleName(), "start $samplepixels")
         i = 0
         while (i < samplepixels) {
-            b = (p[pix + 0] and 255) shl netbiasshift
-            g = (p[pix + 1] and 255) shl netbiasshift
-            r = (p[pix + 2] and 255) shl netbiasshift
+            b = (thepicture[pix + 0] and 255) shl netbiasshift
+            g = (thepicture[pix + 1] and 255) shl netbiasshift
+            r = (thepicture[pix + 2] and 255) shl netbiasshift
             j = contest(b, g, r)
 
             altersingle(alpha, j, b, g, r)
@@ -226,7 +307,7 @@ class NeuQuant
                 alterneigh(rad, j, b, g, r) /* alter neighbours */
 
             pix += step
-            if (pix >= lim)
+            if (pix >= lengthcount)
                 pix -= lengthcount
 
             i++
@@ -239,16 +320,14 @@ class NeuQuant
                 if (rad <= 1)
                     rad = 0
                 run {
-                    j = 0
-                    while (j < rad) {
-                        radpower[j] = alpha * (((rad * rad - j * j) * radbias) / (rad * rad))
-                        j++
+                    val rad2 = rad * rad
+                    for (j in 0..rad - 1) {
+                        radpower[j] = alpha * (((rad2 - j * j) * radbias) / rad2)
                     }
                 }
             }
         }
-        // fprintf(stderr,"finished 1D learning: final alpha=%f
-        // !\n",((float)alpha)/initalpha);
+        Log.d(javaClass<AnimatedGifEncoder>().getSimpleName(), "end")
     }
 
     /*
@@ -326,7 +405,7 @@ class NeuQuant
         return (best)
     }
 
-    public fun process(): ByteArray {
+    public fun process(): IntArray {
         learn()
         unbiasnet()
         inxbuild()
@@ -464,91 +543,5 @@ class NeuQuant
         freq[bestpos] += beta
         bias[bestpos] -= betagamma
         return (bestbiaspos)
-    }
-
-    companion object {
-        /* number of colours used */
-        protected val netsize: Int = 256
-
-        /* four primes near 500 - assume no image has a length so large */
-        /* that it is divisible by all four primes */
-        protected val prime1: Int = 499
-
-        protected val prime2: Int = 491
-
-        protected val prime3: Int = 487
-
-        protected val prime4: Int = 503
-
-        protected val minpicturebytes: Int = (3 * prime4)
-
-        /* minimum size for input image */
-
-        /*
-	    * Program Skeleton ---------------- [select samplefac in range 1..30] [read
-	    * image from input file] pic = (unsigned char*) malloc(3*width*height);
-	    * initnet(pic,3*width*height,samplefac); learn(); unbiasnet(); [write output
-	    * image header, using writecolourmap(f)] inxbuild(); write output image using
-	    * inxsearch(b,g,r)
-	    */
-
-        /*
-	    * Network Definitions -------------------
-	    */
-
-        protected val maxnetpos: Int = (netsize - 1)
-
-        protected val netbiasshift: Int = 4 /* bias for colour values */
-
-        protected val ncycles: Int = 100 /* no. of learning cycles */
-
-        /* defs for freq and bias */
-        protected val intbiasshift: Int = 16 /* bias for fractions */
-
-        protected val intbias: Int = 1 shl intbiasshift
-
-        protected val gammashift: Int = 10 /* gamma = 1024 */
-
-        protected val gamma: Int = 1 shl gammashift
-
-        protected val betashift: Int = 10
-
-        protected val beta: Int = (intbias shr betashift) /* beta = 1/1024 */
-
-        protected val betagamma: Int = (intbias shl (gammashift - betashift))
-
-        /* defs for decreasing radius factor */
-        /*
-        * for 256 cols, radius
-        * starts
-        */
-        protected val initrad: Int = (netsize shr 3)
-
-        protected val radiusbiasshift: Int = 6 /* at 32.0 biased by 6 bits */
-
-        protected val radiusbias: Int = 1 shl radiusbiasshift
-
-        /*
-        * and
-        * decreases
-        * by a
-        */
-        protected val initradius: Int = (initrad * radiusbias)
-
-        protected val radiusdec: Int = 30 /* factor of 1/30 each cycle */
-
-        /* defs for decreasing alpha factor */
-        protected val alphabiasshift: Int = 10 /* alpha starts at 1.0 */
-
-        protected val initalpha: Int = 1 shl alphabiasshift
-
-        /* radbias and alpharadbias used for radpower calculation */
-        protected val radbiasshift: Int = 8
-
-        protected val radbias: Int = 1 shl radbiasshift
-
-        protected val alpharadbshift: Int = (alphabiasshift + radbiasshift)
-
-        protected val alpharadbias: Int = 1 shl alpharadbshift
     }
 }

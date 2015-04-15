@@ -46,7 +46,7 @@ public class SampleFragment extends Fragment {
                         new ScreenRecorder(
                                 getActivity(),
                                 getActivity().getWindow().getDecorView(),
-                                5000,
+                                2000,
                                 20,
                                 0.3,
                                 0);
