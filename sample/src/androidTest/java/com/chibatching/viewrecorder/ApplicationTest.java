@@ -1,4 +1,4 @@
-package com.chibatching.screenrecorder;
+package com.chibatching.viewrecorder;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

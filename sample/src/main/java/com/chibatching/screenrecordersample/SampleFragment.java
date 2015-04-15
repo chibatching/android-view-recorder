@@ -9,7 +9,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
-import com.chibatching.screenrecorder.ScreenRecorder;
+import com.chibatching.viewrecorder.ViewRecorder;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -42,8 +42,8 @@ public class SampleFragment extends Fragment {
         recButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(@NotNull View view) {
-                ScreenRecorder sr =
-                        new ScreenRecorder(
+                ViewRecorder sr =
+                        new ViewRecorder(
                                 getActivity(),
                                 getActivity().getWindow().getDecorView(),
                                 2000,

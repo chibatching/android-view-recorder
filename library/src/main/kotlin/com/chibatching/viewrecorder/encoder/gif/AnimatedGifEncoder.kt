@@ -1,4 +1,4 @@
-package com.chibatching.screenrecorder.encoder.gif
+package com.chibatching.viewrecorder.encoder.gif
 
 import java.io.IOException
 import java.io.OutputStream

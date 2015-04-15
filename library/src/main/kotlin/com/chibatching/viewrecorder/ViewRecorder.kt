@@ -1,4 +1,4 @@
-package com.chibatching.screenrecorder
+package com.chibatching.viewrecorder
 
 import android.app.Activity
 import android.content.Context
@@ -9,7 +9,7 @@ import android.os.AsyncTask
 import android.os.Debug
 import android.util.Log
 import android.view.View
-import com.chibatching.screenrecorder.encoder.gif.AnimatedGifEncoder
+import com.chibatching.viewrecorder.encoder.gif.AnimatedGifEncoder
 import rx.Observable
 import rx.Subscriber
 import rx.android.schedulers.AndroidSchedulers
@@ -22,31 +22,31 @@ import java.util.HashMap
 import java.util.concurrent.TimeUnit
 
 
-public class ScreenRecorder(
+public class ViewRecorder(
         val context: Context, val view: View, val duration: Int = 5000,
         val frameRate: Int = 12, val scale: Double = 0.3, val loopCount: Int = 0) {
 
     var isRecording: Boolean = false
 
     public fun start() {
-        Log.d(javaClass<ScreenRecorder>().getSimpleName(), "start")
+        Log.d(javaClass<ViewRecorder>().getSimpleName(), "start")
         isRecording = true
 
         val maxCount = (frameRate * duration / 1000).toInt()
         val interval = 1000 / frameRate
 
-        Log.d(javaClass<ScreenRecorder>().getSimpleName(), "maxCount: $maxCount, interval: $interval")
+        Log.d(javaClass<ViewRecorder>().getSimpleName(), "maxCount: $maxCount, interval: $interval")
 
         var savedFrame = 0
         view.setDrawingCacheEnabled(true)
 
         Observable.create<Pair<Int, ByteArray?>> {subscriber ->
             Thread (Runnable {
-                Log.d(javaClass<ScreenRecorder>().getSimpleName(), "start thread")
+                Log.d(javaClass<ViewRecorder>().getSimpleName(), "start thread")
 
                 for (i in 0..maxCount - 1) {
                     val startTime = System.currentTimeMillis()
-                    Log.d(javaClass<ScreenRecorder>().getSimpleName(), "frame: $i")
+                    Log.d(javaClass<ViewRecorder>().getSimpleName(), "frame: $i")
 
                     Observable.create<Bitmap> {
                         var orgBitmap = view.getDrawingCache()
@@ -97,7 +97,7 @@ public class ScreenRecorder(
                 var prev = 0
                 data.sortBy { it.first }.forEach {
                     val current = it.first
-                    Log.d(javaClass<ScreenRecorder>().getSimpleName(), "current: $current, prev: $prev")
+                    Log.d(javaClass<ViewRecorder>().getSimpleName(), "current: $current, prev: $prev")
                     encoder.addFrame(BitmapFactory.decodeByteArray(it.second, 0, it.second!!.size()))
                     prev = current
                 }
