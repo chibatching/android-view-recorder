@@ -41,7 +41,9 @@ public class SampleFragment extends Fragment {
         final View contentView = inflater.inflate(R.layout.fragment_sample, container, false);
         final RelativeLayout layout = (RelativeLayout) contentView.findViewById(R.id.container);
 
-        Button startButton = (Button) contentView.findViewById(R.id.btn_start_rec);
+        final Button startButton = (Button) contentView.findViewById(R.id.btn_start_rec);
+        final Button stopButton = (Button) contentView.findViewById(R.id.btn_stop_rec);
+
         startButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(@NotNull View view) {
@@ -50,17 +52,27 @@ public class SampleFragment extends Fragment {
                         .setLoopCount(0)
                         .setFrameRate(20)
                         .setScale(0.3)
+                        .setOnRecordFinishListener(new ViewRecorder.OnRecordFinishListener() {
+                            @Override
+                            public void onRecordFinish() {
+                                stopButton.setEnabled(false);
+                                startButton.setEnabled(true);
+                            }
+                        })
                         .create();
 
                 recorder.start();
+                stopButton.setEnabled(true);
+                startButton.setEnabled(false);
             }
         });
 
-        Button stopButton = (Button) contentView.findViewById(R.id.btn_stop_rec);
         stopButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(@NotNull View view) {
                 recorder.stop();
+                stopButton.setEnabled(false);
+                startButton.setEnabled(true);
             }
         });
 
