@@ -45,11 +45,13 @@ public class ViewRecorderBuilder(val context: Context, val view: View) {
         return this
     }
 
-    public fun setOnRecordFinishListener(listener: ViewRecorder.OnRecordFinishListener) {
+    public fun setOnRecordFinishListener(listener: ViewRecorder.OnRecordFinishListener): ViewRecorderBuilder {
         this.mOnRecordFinishListener = listener
+        return this
     }
 
-    public fun setOnEncodeFinishListener(listener: ViewRecorder.OnEncodeFinishListener) {
+    public fun setOnEncodeFinishListener(listener: ViewRecorder.OnEncodeFinishListener): ViewRecorderBuilder {
         this.mOnEncodeFinishListener = listener
+        return this
     }
 }
