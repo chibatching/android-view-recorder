@@ -12,97 +12,156 @@ import android.view.View
 import com.chibatching.viewrecorder.encoder.gif.AnimatedGifEncoder
 import rx.Observable
 import rx.Subscriber
+import rx.Subscription
 import rx.android.schedulers.AndroidSchedulers
 import rx.schedulers.Schedulers
+import rx.subscriptions.CompositeSubscription
+import rx.subscriptions.Subscriptions
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.util.ArrayList
 import java.util.Comparator
 import java.util.HashMap
 import java.util.concurrent.TimeUnit
 
 
-public class ViewRecorder(
-        val context: Context, val view: View, val duration: Int = 5000,
-        val frameRate: Int = 12, val scale: Double = 0.3, val loopCount: Int = 0) {
+public class ViewRecorder {
 
-    var isRecording: Boolean = false
+    val context: Context
+    val view: View
+    val duration: Int
+    val frameRate: Int
+    val scale: Double
+    val loopCount: Int
+
+    private var mIsEncording: Boolean = false
+    private var mIsRecording: Boolean = false
+    private var mSubscriptions: CompositeSubscription = CompositeSubscription()
+
+    private val mMaxCount: Int
+    private val mInterval: Int
+
+    private var mData: MutableList<Pair<Int, ByteArray?>>
+
+    init {
+    }
+
+    protected constructor(context: Context, view: View, duration: Int = 5000,
+                          frameRate: Int = 12, scale: Double = 0.3, loopCount: Int = 0) {
+
+        this.context = context
+        this.view = view
+        this.duration = duration
+        this.frameRate = frameRate
+        this.scale = scale
+        this.loopCount = loopCount
+
+        mMaxCount = (frameRate * duration / 1000).toInt()
+        mInterval = 1000 / frameRate
+        mData = ArrayList(mMaxCount)
+    }
+
+    public fun recorderBuilder(): ViewRecorder {
+        return this
+    }
 
     public fun start() {
         Log.d(javaClass<ViewRecorder>().getSimpleName(), "start")
-        isRecording = true
+        mIsRecording = true
 
-        val maxCount = (frameRate * duration / 1000).toInt()
-        val interval = 1000 / frameRate
-
-        Log.d(javaClass<ViewRecorder>().getSimpleName(), "maxCount: $maxCount, interval: $interval")
+        Log.d(javaClass<ViewRecorder>().getSimpleName(), "maxCount: $mMaxCount, interval: $mInterval")
 
         var savedFrame = 0
-        view.setDrawingCacheEnabled(true)
 
-        Observable.create<Pair<Int, ByteArray?>> {subscriber ->
+        mSubscriptions.add(Observable.create<Pair<Int, ByteArray?>> {subscriber ->
+            // When stop recording, start encode
+            subscriber.add(Subscriptions.create{
+                mIsRecording = false
+                encode(mData)
+            })
+            // Don't use Observable.interval etc.., it is too slow to repeat recording.
             Thread (Runnable {
                 Log.d(javaClass<ViewRecorder>().getSimpleName(), "start thread")
 
-                for (i in 0..maxCount - 1) {
+                var i = 0
+                while ((i < mMaxCount) and mIsRecording) {
                     val startTime = System.currentTimeMillis()
-                    Log.d(javaClass<ViewRecorder>().getSimpleName(), "frame: $i")
+                    val currentFrame = i
+                    Log.d(javaClass<ViewRecorder>().getSimpleName(), "frame: $currentFrame")
 
-                    Observable.create<Bitmap> {
-                        var orgBitmap = view.getDrawingCache()
-                        val bitmap =
-                                Bitmap.createScaledBitmap(
-                                        orgBitmap,
-                                        (orgBitmap.getWidth() * scale).toInt(),
-                                        (orgBitmap.getHeight() * scale).toInt(),
-                                        false)
-                        it.onNext(bitmap)
-                        it.onCompleted()
-                        view.destroyDrawingCache()
-                    }
-                    .subscribeOn(AndroidSchedulers.mainThread())
-                    .observeOn(Schedulers.newThread())
-                    .subscribe { bitmap ->
-                        ByteArrayOutputStream().use {
-                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
-                            subscriber.onNext(Pair(i, it.toByteArray()))
-                            savedFrame++
-                            if (savedFrame >= maxCount) {
-                                subscriber.onCompleted()
+                    mSubscriptions.add(getViewDrawingCache()
+                            .observeOn(Schedulers.newThread())
+                            .map {
+                                subscriber.onNext(Pair(currentFrame, convertBitmapToByteArray(it)))
+                                ++savedFrame
                             }
-                        }
-                    }
+                            .filter { it >= mMaxCount }
+                            .subscribe { subscriber.onCompleted() })
 
                     Thread.sleep(
-                            if ((System.currentTimeMillis() - startTime) < interval.toLong()) {
-                                interval.toLong() - (System.currentTimeMillis() - startTime)
+                            if ((System.currentTimeMillis() - startTime) < mInterval.toLong()) {
+                                mInterval.toLong() - (System.currentTimeMillis() - startTime)
                             } else {
                                 0
                             })
+
+                    i++
                 }
             }).start()
         }
         .subscribeOn(Schedulers.newThread())
-        .buffer(maxCount + 1)
-        .observeOn(Schedulers.newThread())
-        .subscribe { data ->
-            val outputFile = File(context.getExternalFilesDir(null).getAbsolutePath().plus("/output.gif"))
-            outputFile.createNewFile()
+        .buffer(1000.toLong(), TimeUnit.MILLISECONDS)
+        .subscribe { mData.addAll(it) })
+    }
 
-            FileOutputStream(outputFile).use { fos ->
-                val encoder = AnimatedGifEncoder(fos)
-                encoder.start()
-                encoder.repeat = loopCount
-                encoder.setFrameRate(frameRate.toFloat())
-                var prev = 0
-                data.sortBy { it.first }.forEach {
-                    val current = it.first
-                    Log.d(javaClass<ViewRecorder>().getSimpleName(), "current: $current, prev: $prev")
-                    encoder.addFrame(BitmapFactory.decodeByteArray(it.second, 0, it.second!!.size()))
-                    prev = current
-                }
-                encoder.finish()
+    public fun stop() {
+        mSubscriptions.unsubscribe()
+    }
+
+    private fun encode(data: List<Pair<Int, ByteArray?>>) {
+        val outputFile = File(context.getExternalFilesDir(null).getAbsolutePath().plus("/output.gif"))
+        outputFile.createNewFile()
+
+        FileOutputStream(outputFile).use { fos ->
+            val encoder = AnimatedGifEncoder(fos)
+            encoder.start()
+            encoder.repeat = loopCount
+            encoder.setFrameRate(frameRate.toFloat())
+            var prev = 0
+            data.sortBy { it.first }.forEach {
+                val current = it.first
+                Log.d(javaClass<ViewRecorder>().getSimpleName(), "current: $current, prev: $prev")
+                encoder.addFrame(BitmapFactory.decodeByteArray(it.second, 0, it.second!!.size()))
+                prev = current
             }
+            encoder.finish()
         }
+    }
+
+    private fun getViewDrawingCache(): Observable<Bitmap> {
+        return Observable.create<Bitmap> {
+            view.setDrawingCacheEnabled(true)
+            var orgBitmap = view.getDrawingCache()
+            val bitmap =
+                    Bitmap.createScaledBitmap(
+                            orgBitmap,
+                            (orgBitmap.getWidth() * scale).toInt(),
+                            (orgBitmap.getHeight() * scale).toInt(),
+                            false)
+            it.onNext(bitmap)
+            it.onCompleted()
+            view.destroyDrawingCache()
+        }.subscribeOn(AndroidSchedulers.mainThread())
+    }
+
+    private fun convertBitmapToByteArray(bitmap: Bitmap): ByteArray? {
+        var byteArray: ByteArray? = null
+        ByteArrayOutputStream().use {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+            byteArray = it.toByteArray()
+        }
+        bitmap.recycle()
+        return byteArray
     }
 }
