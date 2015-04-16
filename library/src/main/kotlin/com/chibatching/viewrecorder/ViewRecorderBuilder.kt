@@ -1,21 +1,21 @@
 package com.chibatching.viewrecorder
 
-import android.content.Context
 import android.view.View
+import java.io.File
 
 
-public class ViewRecorderBuilder(val context: Context, val view: View) {
+public class ViewRecorderBuilder(val output: File, val view: View) {
 
-    private var mDuration: Int = -1
-    private var mFrameRate: Int = 12
-    private var mScale: Double = 0.3
-    private var mLoopCount: Int = 0
+    private var mDuration: Int = DEFAULT_DURATION
+    private var mFrameRate: Int = DEFAULT_FRAME_RATE
+    private var mScale: Double = DEFAULT_SCALE
+    private var mLoopCount: Int = DEFAULT_LOOP_COUNT
     private var mOnRecordFinishListener: ViewRecorder.OnRecordFinishListener? = null
     private var mOnEncodeFinishListener: ViewRecorder.OnEncodeFinishListener? = null
 
     public fun create(): ViewRecorder {
         return ViewRecorder(
-                context = context,
+                outputFile = output,
                 view = view,
                 duration = mDuration,
                 frameRate = mFrameRate,

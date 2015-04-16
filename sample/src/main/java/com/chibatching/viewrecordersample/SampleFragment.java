@@ -14,12 +14,14 @@ import com.chibatching.viewrecorder.ViewRecorderBuilder;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
+
 public class SampleFragment extends Fragment {
 
     private static final int[] COLORS = {Color.BLUE, Color.GREEN, Color.RED};
     private int mColorIndex = 0;
 
-    private ViewRecorder recorder;
+    private ViewRecorder mRecorder;
 
     public static SampleFragment newInstance() {
         return new SampleFragment();
@@ -47,10 +49,16 @@ public class SampleFragment extends Fragment {
         startButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(@NotNull View view) {
-                recorder = new ViewRecorderBuilder(getActivity(), getActivity().getWindow().getDecorView())
-//                        .setDuration(4000)
+                File output;
+                if (getActivity().getExternalFilesDir(null) != null) {
+                    output = new File(getActivity().getExternalFilesDir(null).getAbsolutePath() + "/output.gif");
+                } else {
+                    output = new File(getActivity().getFilesDir().getAbsolutePath() + "/output.gif");
+                }
+                mRecorder = new ViewRecorderBuilder(output, getActivity().getWindow().getDecorView())
+//                        .setDuration(4000)    // If you want to stop fixed duration, set duration in ms.
                         .setLoopCount(0)
-                        .setFrameRate(20)
+                        .setFrameRate(12)
                         .setScale(0.3)
                         .setOnRecordFinishListener(new ViewRecorder.OnRecordFinishListener() {
                             @Override
@@ -61,7 +69,7 @@ public class SampleFragment extends Fragment {
                         })
                         .create();
 
-                recorder.start();
+                mRecorder.start();
                 stopButton.setEnabled(true);
                 startButton.setEnabled(false);
             }
@@ -70,7 +78,7 @@ public class SampleFragment extends Fragment {
         stopButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(@NotNull View view) {
-                recorder.stop();
+                mRecorder.stop();
                 stopButton.setEnabled(false);
                 startButton.setEnabled(true);
             }
@@ -87,4 +95,9 @@ public class SampleFragment extends Fragment {
         return contentView;
     }
 
+    @Override
+    public void onDestroy() {
+        mRecorder.destroy();
+        super.onDestroy();
+    }
 }

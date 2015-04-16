@@ -1,6 +1,5 @@
 package com.chibatching.viewrecorder
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
@@ -19,19 +18,14 @@ import java.util.ArrayList
 import java.util.concurrent.TimeUnit
 
 
-public class ViewRecorder {
-
-    private val mContext: Context
-    private val mView: View
-    private val mDuration: Int
-    private val mFrameRate: Int
-    private val mScale: Double
-    private val mLoopCount: Int
-    private val mOnRecordFinishListener: OnRecordFinishListener?
-    private val mOnEncodeFinishListener: OnEncodeFinishListener?
-
-    private var mIsEncording: Boolean = false
-    private var mIsRecording: Boolean = false
+public class ViewRecorder(private val outputFile: File,
+                          private val view: View,
+                          private val duration: Int = DEFAULT_DURATION,
+                          private val frameRate: Int = DEFAULT_FRAME_RATE,
+                          private val scale: Double = DEFAULT_SCALE,
+                          private val loopCount: Int = DEFAULT_LOOP_COUNT,
+                          private val onRecordFinishListener: ViewRecorder.OnRecordFinishListener? = null,
+                          private val onEncodeFinishListener: ViewRecorder.OnEncodeFinishListener? = null) {
 
     private var mRecordingSubscription: Subscription = Subscriptions.empty()
     private var mEncodingSubscription: Subscription = Subscriptions.empty()
@@ -42,18 +36,12 @@ public class ViewRecorder {
 
     private var mData: MutableList<Pair<Int, ByteArray?>>
 
-    internal constructor(context: Context, view: View, duration: Int, frameRate: Int, scale: Double,
-                         loopCount: Int, onRecordFinishListener: OnRecordFinishListener?,
-                         onEncodeFinishListener: OnEncodeFinishListener?) {
-        this.mContext = context
-        this.mView = view
-        this.mDuration = duration
-        this.mFrameRate = frameRate
-        this.mScale = scale
-        this.mLoopCount = loopCount
-        this.mOnRecordFinishListener = onRecordFinishListener
-        this.mOnEncodeFinishListener = onEncodeFinishListener
+    var isEncoding: Boolean = false
+        private set
+    var isRecording: Boolean = false
+        private set
 
+    init {
         mMaxCount = if (duration > 0) (frameRate * duration / 1000).toInt() else -1
         mInterval = 1000 / frameRate
         if (mMaxCount > 0) {
@@ -65,12 +53,12 @@ public class ViewRecorder {
 
     public fun start(): Boolean {
 
-        if (mIsRecording) {
+        if (isRecording) {
             return false
         }
 
         Log.d(javaClass<ViewRecorder>().getSimpleName(), "start")
-        mIsRecording = true
+        isRecording = true
 
         Log.d(javaClass<ViewRecorder>().getSimpleName(), "maxCount: $mMaxCount, interval: $mInterval")
 
@@ -79,15 +67,15 @@ public class ViewRecorder {
         mRecordingSubscription = Observable.create<Pair<Int, ByteArray?>> {subscriber ->
             // When stop recording, start encoding
             subscriber.add(Subscriptions.create{
-                mIsRecording = false
-                mOnRecordFinishListener?.onRecordFinish()
+                isRecording = false
+                onRecordFinishListener?.onRecordFinish()
                 mEncodingSubscription = encode(mData).subscribe {
-                    mOnEncodeFinishListener?.onEncordFinish(it)
+                    onEncodeFinishListener?.onEncodeFinish(it)
                     mEncodingSubscription.unsubscribe()
                 }
             })
 
-            fun loopCheck(count: Int) = mIsRecording and ((count < mMaxCount) or (mMaxCount < 0))
+            fun loopCheck(count: Int) = isRecording and ((count < mMaxCount) or (mMaxCount < 0))
 
             // Don't use Observable.interval or other rx emission methods.
             // It is too slow to repeat to high speed.
@@ -121,7 +109,7 @@ public class ViewRecorder {
             }).start()
         }
         .subscribeOn(Schedulers.newThread())
-        .buffer((if (mDuration > 0) mDuration else 1000).toLong(), TimeUnit.MILLISECONDS)
+        .buffer((if (duration > 0) duration else 1000).toLong(), TimeUnit.MILLISECONDS)
         .subscribe { mData.addAll(it) }
 
         return true
@@ -132,19 +120,30 @@ public class ViewRecorder {
         mRecordingSubscription.unsubscribe()
     }
 
+    public fun destroy() {
+        mViewObtainSubscriptions.unsubscribe()
+        mRecordingSubscription.unsubscribe()
+        mEncodingSubscription.unsubscribe()
+        isRecording = false
+        isEncoding = false
+    }
+
     private fun encode(data: List<Pair<Int, ByteArray?>>): Observable<String> {
-        val outputFile = File(mContext.getExternalFilesDir(null).getAbsolutePath().plus("/output.gif"))
         outputFile.createNewFile()
-        mIsEncording = true
+        isEncoding = true
 
         return Observable.create<String> {
             FileOutputStream(outputFile).use { fos ->
                 val encoder = AnimatedGifEncoder(fos)
                 encoder.start()
-                encoder.repeat = mLoopCount
-                encoder.setFrameRate(mFrameRate.toFloat())
+                encoder.repeat = loopCount
+                encoder.setFrameRate(frameRate.toFloat())
                 var prev = 0
                 data.sortBy { it.first }.forEach {
+                    if (!isEncoding) {
+                        return@forEach
+                    }
+
                     val current = it.first
                     Log.d(javaClass<ViewRecorder>().getSimpleName(), "current: $current, prev: $prev")
                     encoder.addFrame(BitmapFactory.decodeByteArray(it.second, 0, it.second!!.size()))
@@ -154,23 +153,23 @@ public class ViewRecorder {
             }
             it.onNext(outputFile.getAbsolutePath())
             it.onCompleted()
-            mIsEncording = false
+            isEncoding = false
         }.subscribeOn(Schedulers.newThread())
     }
 
     private fun getViewDrawingCache(): Observable<Bitmap> {
         return Observable.create<Bitmap> {
-            mView.setDrawingCacheEnabled(true)
-            var orgBitmap = mView.getDrawingCache()
+            view.setDrawingCacheEnabled(true)
+            var orgBitmap = view.getDrawingCache()
             val bitmap =
                     Bitmap.createScaledBitmap(
                             orgBitmap,
-                            (orgBitmap.getWidth() * mScale).toInt(),
-                            (orgBitmap.getHeight() * mScale).toInt(),
+                            (orgBitmap.getWidth() * scale).toInt(),
+                            (orgBitmap.getHeight() * scale).toInt(),
                             false)
             it.onNext(bitmap)
             it.onCompleted()
-            mView.destroyDrawingCache()
+            view.destroyDrawingCache()
         }.subscribeOn(AndroidSchedulers.mainThread())
     }
 
@@ -189,6 +188,6 @@ public class ViewRecorder {
     }
 
     public trait OnEncodeFinishListener {
-        fun onEncordFinish(filePath: String)
+        fun onEncodeFinish(filePath: String)
     }
 }

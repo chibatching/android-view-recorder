@@ -1,7 +1,5 @@
 package com.chibatching.viewrecorder.encoder.gif
 
-import android.util.Log
-
 
 /*
  * NeuQuant Neural-Net Quantization Algorithm
@@ -274,8 +272,8 @@ class NeuQuant
 
         run {
             val rad2 = rad * rad
-            for (i in 0..rad - 1) {
-                radpower[i] = alpha * (((rad2 - i * i) * radbias) / rad2)
+            for (index in 0..rad - 1) {
+                radpower[index] = alpha * (((rad2 - index * index) * radbias) / rad2)
             }
         }
 
@@ -320,8 +318,8 @@ class NeuQuant
                     rad = 0
                 run {
                     val rad2 = rad * rad
-                    for (j in 0..rad - 1) {
-                        radpower[j] = alpha * (((rad2 - j * j) * radbias) / rad2)
+                    for (index in 0..rad - 1) {
+                        radpower[index] = alpha * (((rad2 - index * index) * radbias) / rad2)
                     }
                 }
             }
