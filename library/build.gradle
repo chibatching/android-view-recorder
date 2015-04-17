@@ -1,5 +1,7 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
+apply plugin: 'com.jfrog.bintray'
+apply plugin: 'com.github.dcendents.android-maven'
 
 android {
     compileSdkVersion 22
@@ -9,7 +11,7 @@ android {
         minSdkVersion 9
         targetSdkVersion 22
         versionCode 1
-        versionName "1.0"
+        versionName "0.0.1"
     }
     buildTypes {
         release {
@@ -30,6 +32,7 @@ buildscript {
     ext.kotlin_version = '0.11.91.1'
     repositories {
         mavenCentral()
+        jcenter()
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
@@ -37,4 +40,87 @@ buildscript {
 }
 repositories {
     mavenCentral()
+}
+
+
+def siteUrl = 'https://github.com/chibatching/android-view-recorder'
+def gitUrl = 'https://github.com/chibatching/android-view-recorder.git'
+
+group = 'com.chibatching'
+version = '0.0.1'
+
+bintray {
+    // user and password come from the gradle.properties file
+    user = project.hasProperty('bintrayUser') ? bintrayUser : 'noUser'
+    key = project.hasProperty('bintrayKey') ? bintrayKey : 'noKey'
+    configurations = ['archives']
+    dryRun = false //Whether to run this as dry-run, without deploying
+    publish = true //If version should be auto published after an upload
+    //Package configuration. The plugin will use the repo and name properties to check if the package already exists. In that case, there's no need to configure the other package properties (like userOrg, desc, etc).
+    pkg {
+        repo = 'maven'
+        name = 'android-view-recorder'
+        desc = 'Recording view and save gif animation.'
+        websiteUrl = 'https://github.com/chibatching/android-view-recorder'
+        issueTrackerUrl = 'https://github.com/chibatching/android-view-recorder/issues'
+        vcsUrl = 'https://github.com/chibatching/android-view-recorder.git'
+        licenses = ['Apache-2.0']
+        labels = ['android']
+        publicDownloadNumbers = true
+    }
+}
+
+install {
+    repositories.mavenInstaller {
+        pom {
+            project {
+                packaging 'aar'
+                artifactId 'android-view-recorder'
+                name 'android-view-recorder'
+                url siteUrl
+                licenses {
+                    license {
+                        name 'The Apache Software License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id 'chibatching'
+                        name 'chibatching'
+                        email 'chibatching.apps@gmail.com'
+                    }
+                }
+                scm {
+                    connection gitUrl
+                    developerConnection gitUrl
+                    url siteUrl
+
+                }
+            }
+        }
+    }
+}
+
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier = 'sources'
+}
+
+task javadoc(type: Javadoc) {
+//    source = android.sourceSets.main.java.srcDirs
+//    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+artifacts {
+    archives javadocJar
+    archives sourcesJar
+}
+
+task findConventions << {
+    println project.getConvention()
 }
