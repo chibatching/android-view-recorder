@@ -56,7 +56,7 @@ public class SampleFragment extends Fragment {
                     output = new File(getActivity().getFilesDir().getAbsolutePath() + "/output.gif");
                 }
                 mRecorder = new ViewRecorderBuilder(output, getActivity().getWindow().getDecorView())
-//                        .setDuration(4000)    // If you want to stop fixed duration, set duration in ms.
+                        .setDuration(4000)    // If you want to stop fixed duration, set duration in ms.
                         .setLoopCount(0)
                         .setFrameRate(12)
                         .setScale(0.3)

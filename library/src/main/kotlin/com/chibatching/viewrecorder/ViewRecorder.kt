@@ -41,6 +41,7 @@ public class ViewRecorder(private val outputFile: File,
     private var mRecordingSubscription: Subscription = Subscriptions.empty()
     private var mEncodingSubscription: Subscription = Subscriptions.empty()
     private var mViewObtainSubscriptions: CompositeSubscription = CompositeSubscription()
+    private var mOtherSubscriptions: CompositeSubscription = CompositeSubscription()
 
     private val mMaxCount: Int
     private val mInterval: Int
@@ -82,11 +83,17 @@ public class ViewRecorder(private val outputFile: File,
             // When stop recording, start encoding
             subscriber.add(Subscriptions.create{
                 isRecording = false
-                onRecordFinishListener?.onRecordFinish()
-                mEncodingSubscription = encode(mData).subscribe {
-                    onEncodeFinishListener?.onEncodeFinish(it)
-                    mEncodingSubscription.unsubscribe()
-                }
+                mOtherSubscriptions.add(
+                        Observable.create<Void> {
+                            onRecordFinishListener?.onRecordFinish()
+                            it.onCompleted()
+                        }.subscribeOn(AndroidSchedulers.mainThread()).subscribe())
+                mEncodingSubscription = encode(mData)
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe {
+                            onEncodeFinishListener?.onEncodeFinish(it)
+                            mEncodingSubscription.unsubscribe()
+                        }
             })
 
             fun loopCheck(count: Int) = isRecording and ((count < mMaxCount) or (mMaxCount < 0))
@@ -144,6 +151,7 @@ public class ViewRecorder(private val outputFile: File,
         mViewObtainSubscriptions.unsubscribe()
         mRecordingSubscription.unsubscribe()
         mEncodingSubscription.unsubscribe()
+        mOtherSubscriptions.unsubscribe()
         isRecording = false
         isEncoding = false
     }
