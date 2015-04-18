@@ -66,7 +66,7 @@ internal class AnimatedGifEncoder (val out : OutputStream) {
 
     var sample: Int = 10 // default sample interval for quantizer
 
-    data class AnalyzedData(val indexedPixels: ByteArray, val colorTab: IntArray)
+    data class AnalyzedData(val indexedPixels: ByteArray, val colorTab: ByteArray)
 
     /**
      * Adds next GIF frame. The frame is not written immediately, but is actually
@@ -231,7 +231,7 @@ internal class AnimatedGifEncoder (val out : OutputStream) {
     /**
      * Analyzes image colors and creates color map.
      */
-    protected fun analyzePixels(pixels: IntArray) : AnalyzedData {
+    protected fun analyzePixels(pixels: ByteArray) : AnalyzedData {
         val len = pixels.size()
         val nPix = len / 3
         val indexedPixels = ByteArray(nPix)
@@ -250,7 +250,7 @@ internal class AnimatedGifEncoder (val out : OutputStream) {
         // map image pixels to new palette
         var k = 0
         for (i in 0..nPix - 1) {
-            val index = nq.map(pixels[k++] and 255, pixels[k++] and 255, pixels[k++] and 255)
+            val index = nq.map(pixels[k++].toInt() and 255, pixels[k++].toInt() and 255, pixels[k++].toInt() and 255)
             usedEntry.set(index, true)
             indexedPixels.set(i, index.toByte())
         }
@@ -269,7 +269,7 @@ internal class AnimatedGifEncoder (val out : OutputStream) {
      * Returns index of palette color closest to c
 
      */
-    protected fun findClosest(c: Int, colorTab: IntArray): Int {
+    protected fun findClosest(c: Int, colorTab: ByteArray): Int {
         val r = (c shr 16) and 255
         val g = (c shr 8) and 255
         val b = (c shr 0) and 255
@@ -279,9 +279,9 @@ internal class AnimatedGifEncoder (val out : OutputStream) {
         run {
             var i = 0
             while (i < len) {
-                val dr = r - (colorTab[i++] and 255)
-                val dg = g - (colorTab[i++] and 255)
-                val db = b - (colorTab[i] and 255)
+                val dr = r - (colorTab[i++].toInt() and 255)
+                val dg = g - (colorTab[i++].toInt() and 255)
+                val db = b - (colorTab[i].toInt() and 255)
                 val d = dr * dr + dg * dg + db * db
                 val index = i / 3
                 if (usedEntry[index] && (d < dmin)) {
@@ -297,7 +297,7 @@ internal class AnimatedGifEncoder (val out : OutputStream) {
     /**
      * Extracts image pixels into byte array "pixels"
      */
-    protected fun getImagePixels(image: Bitmap): IntArray {
+    protected fun getImagePixels(image: Bitmap): ByteArray {
         val w = image.getWidth()
         val h = image.getHeight()
         var temp: Bitmap? = null
@@ -308,12 +308,12 @@ internal class AnimatedGifEncoder (val out : OutputStream) {
             g.drawBitmap(image, 0.toFloat(), 0.toFloat(), Paint())
         }
         val data = getImageData(if (temp == null) image else temp as Bitmap)
-        val pixels = IntArray(data.size() * 3)
+        val pixels = ByteArray(data.size() * 3)
         for (i in 0..data.size() - 1) {
             val tind = i * 3
-            pixels[tind] = (data[i] shr 0) and 255
-            pixels[tind + 1] = (data[i] shr 8) and 255
-            pixels[tind + 2] = (data[i] shr 16) and 255
+            pixels[tind] = ((data[i] shr 0) and 255).toByte()
+            pixels[tind + 1] = ((data[i] shr 8) and 255).toByte()
+            pixels[tind + 2] = ((data[i] shr 16) and 255).toByte()
         }
         return pixels
     }
@@ -421,10 +421,8 @@ internal class AnimatedGifEncoder (val out : OutputStream) {
      * Writes color table
      */
     throws(javaClass<IOException>())
-    protected fun writePalette(colorTab: IntArray) {
-        for (i in 0..colorTab.size() - 1) {
-            out.write(colorTab[i])
-        }
+    protected fun writePalette(colorTab: ByteArray) {
+        out.write(colorTab, 0, colorTab.size())
         val n = (3 * 256) - colorTab.size()
         for (i in 0..n - 1) {
             out.write(0)

@@ -31,7 +31,7 @@ package com.chibatching.viewrecorder.encoder.gif
 * -----------------------------------------------------------------------
 */
 internal class NeuQuant
-(protected var thepicture: IntArray, protected var lengthcount: Int, protected var samplefac: Int) {
+(protected var thepicture: ByteArray, protected var lengthcount: Int, protected var samplefac: Int) {
     /* number of colours used */
     protected val netsize: Int = 256
 
@@ -144,8 +144,8 @@ internal class NeuQuant
         })
     }
 
-    public fun colorMap(): IntArray {
-        val map = IntArray(3 * netsize)
+    public fun colorMap(): ByteArray {
+        val map = ByteArray(3 * netsize)
         val index = IntArray(netsize)
         for (i in 0..netsize - 1) {
             index[network[i][3]] = i
@@ -153,9 +153,9 @@ internal class NeuQuant
         var k = 0
         for (i in 0..netsize - 1) {
             val j = index[i]
-            map[k++] = network[j][0]
-            map[k++] = network[j][1]
-            map[k++] = network[j][2]
+            map[k++] = network[j][0].toByte()
+            map[k++] = network[j][1].toByte()
+            map[k++] = network[j][2].toByte()
         }
         return map
     }
@@ -294,9 +294,9 @@ internal class NeuQuant
 
         i = 0
         while (i < samplepixels) {
-            b = (thepicture[pix + 0] and 255) shl netbiasshift
-            g = (thepicture[pix + 1] and 255) shl netbiasshift
-            r = (thepicture[pix + 2] and 255) shl netbiasshift
+            b = (thepicture[pix + 0].toInt() and 255) shl netbiasshift
+            g = (thepicture[pix + 1].toInt() and 255) shl netbiasshift
+            r = (thepicture[pix + 2].toInt() and 255) shl netbiasshift
             j = contest(b, g, r)
 
             altersingle(alpha, j, b, g, r)
@@ -401,7 +401,7 @@ internal class NeuQuant
         return (best)
     }
 
-    public fun process(): IntArray {
+    public fun process(): ByteArray {
         learn()
         unbiasnet()
         inxbuild()
