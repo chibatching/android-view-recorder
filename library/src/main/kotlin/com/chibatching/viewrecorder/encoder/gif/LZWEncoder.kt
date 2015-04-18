@@ -8,7 +8,7 @@ package com.chibatching.viewrecorder.encoder.gif
 import java.io.IOException
 import java.io.OutputStream
 
-class LZWEncoder {
+internal class LZWEncoder {
 
     constructor(imgW: Int, imgH: Int, pixAry: ByteArray, color_depth: Int) {
         this.imgW = imgW

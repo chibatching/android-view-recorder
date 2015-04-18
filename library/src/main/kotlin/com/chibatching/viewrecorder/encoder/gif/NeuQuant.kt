@@ -30,7 +30,7 @@ package com.chibatching.viewrecorder.encoder.gif
 * Initialise network in range (0,0,0) to (255,255,255) and set parameters
 * -----------------------------------------------------------------------
 */
-class NeuQuant
+internal class NeuQuant
 (protected var thepicture: IntArray, protected var lengthcount: Int, protected var samplefac: Int) {
     /* number of colours used */
     protected val netsize: Int = 256
