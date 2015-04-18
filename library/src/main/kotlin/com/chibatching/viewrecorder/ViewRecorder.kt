@@ -17,7 +17,18 @@ import java.io.FileOutputStream
 import java.util.ArrayList
 import java.util.concurrent.TimeUnit
 
-
+/**
+ * Recording specified view as gif animation.
+ *
+ * @param outputFile Destination file for output gif animation file.
+ * @param view Target view.
+ * @param duration Recording duration (ms). If duration is smaller than 0, recording will not stop until calling [stop] or [destroy]
+ * @param frameRate Recording frame rate (fps)
+ * @param scale Gif animation size scale against original view size
+ * @param loopCount Gif animation loop count.
+ * @param onRecordFinishListener Listener for callback recording finish
+ * @param onEncodeFinishListener Listener for callback encoding finish
+ */
 public class ViewRecorder(private val outputFile: File,
                           private val view: View,
                           private val duration: Int = DEFAULT_DURATION,
@@ -51,6 +62,9 @@ public class ViewRecorder(private val outputFile: File,
         }
     }
 
+    /**
+     * Start recording for [view]
+     */
     public fun start(): Boolean {
 
         if (isRecording) {
@@ -115,11 +129,17 @@ public class ViewRecorder(private val outputFile: File,
         return true
     }
 
+    /**
+     * Stop recording
+     */
     public fun stop() {
         mViewObtainSubscriptions.unsubscribe()
         mRecordingSubscription.unsubscribe()
     }
 
+    /**
+     * Stop recording and encoding
+     */
     public fun destroy() {
         mViewObtainSubscriptions.unsubscribe()
         mRecordingSubscription.unsubscribe()
