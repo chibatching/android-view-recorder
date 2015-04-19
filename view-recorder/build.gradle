@@ -38,10 +38,6 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
-repositories {
-    mavenCentral()
-}
-
 
 def siteUrl = 'https://github.com/chibatching/android-view-recorder'
 def gitUrl = 'https://github.com/chibatching/android-view-recorder.git'
@@ -77,7 +73,7 @@ install {
         pom {
             project {
                 packaging 'aar'
-                artifactId 'android-view-recorder'
+                artifactId 'view-recorder'
                 name 'android-view-recorder'
                 url siteUrl
                 licenses {
@@ -118,6 +114,7 @@ task javadocJar(type: Jar, dependsOn: javadoc) {
     classifier = 'javadoc'
     from javadoc.destinationDir
 }
+
 artifacts {
     archives javadocJar
     archives sourcesJar
